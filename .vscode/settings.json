@@ -1,6 +1,0 @@
-{
-    "java.project.referencedLibraries": [
-        "lib/**/*.jar",
-        "/home/frede/Desktop/API/json-20230618.jar"
-    ]
-}
