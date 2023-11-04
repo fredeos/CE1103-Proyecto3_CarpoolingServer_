@@ -1,0 +1,7 @@
+# These are basic commands for the app
+
+-> python3 -venv venv
+-> source venv/bin/activate | source venc/Scripts/activate
+-> pip install fastapi uvicorn
+
+-> uvicorn src.main:http_app
