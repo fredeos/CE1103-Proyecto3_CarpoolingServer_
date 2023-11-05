@@ -5,3 +5,4 @@
 -> pip install fastapi uvicorn
 
 -> uvicorn src.main:http_app
+-> uvicorn src.main:http_app --reload
