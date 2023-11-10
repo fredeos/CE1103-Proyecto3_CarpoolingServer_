@@ -1,5 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi import Query
+
 import json
 
 http_app = FastAPI()
@@ -55,12 +56,13 @@ def get_employee_by_id(id:int=Query()):
 
 # >>> Create new user account
 @http_app.post("/accounts/new/")
-def create_new_user(name:str=Query(...), type: str=Query(...), mail:str=Query(...)):
+def create_new_user(name:str=Query(...) , type: str=Query(...) , mail:str=Query(...), password:str=Query(...)):
     # Save the profile information to a dictionary
     user = {
         "id": id_counter+1,
         "name": name,
-        "mail": mail
+        "mail": mail,
+        "pass": password
     }
     # Output folder for saving the user json file
     output_path = f"src/database/{mail}.json"
@@ -84,4 +86,20 @@ def create_new_user(name:str=Query(...), type: str=Query(...), mail:str=Query(..
     
     return user
 
-#TODO: POST method for registering new accounts, GET method for login into an existing account
+# >>> Login to an account(either a Driver or Employee)
+@http_app.get("/accounts/login/")
+def login_user(name_or_mail:str=Query(...), password:str=Query(...), type:str=Query(...)):
+    if type=="driver":
+        for driver in drivers:
+            if driver["name"]==name_or_mail and driver["pass"]==password:
+                return driver
+            elif driver["mail"]==name_or_mail and driver["pass"]==password:
+                return driver
+    if type=="employee":
+        for employee in employees:
+            if employee["name"]==name_or_mail and employee["pass"]==password:
+                return employee
+            elif employee["mail"]==name_or_mail and employee["pass"]==password:
+                return employee
+            
+    raise HTTPException(status_code=404, detail="User account not found")
