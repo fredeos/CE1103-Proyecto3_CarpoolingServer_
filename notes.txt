@@ -1,0 +1,1 @@
+# This file contains main commands for accesing the urls of the RestAPI and accesing information
