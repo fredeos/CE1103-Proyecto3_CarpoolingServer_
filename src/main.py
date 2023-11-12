@@ -28,7 +28,7 @@ with open("src/database/bootup.txt", "r") as file: #Read from the bootup file
             employees.append(json_file)
         
         id_counter += 1
-        
+
 #-----------------[Reads from the saved files and adds them to the previous lists]-----------------#
 
 # >>> Welcome method
@@ -55,8 +55,34 @@ def get_employee_by_id(id:int=Query()):
     return user
 
 # >>> Create new user account
+# Helper method
+def validate_existance(email:str, type:str):
+    """
+    Verifies if the given user already exists in the system
+
+    Parameters:
+        - email(str): emiail of the user
+        - type(str): either 'driver' or 'employee' account
+
+    Returns:
+        - False if the user hasnt been registered yet or True if the user has already been registered
+    """
+    if type=="driver":
+        for driver in drivers:
+            if driver["mail"]==email:
+                return True
+    if type=="employee":
+        for employee in employees:
+            if employee["mail"]==email:
+                return True
+    return False
+# Main method
 @http_app.post("/accounts/new/")
 def create_new_user(name:str=Query(...) , type: str=Query(...) , mail:str=Query(...), password:str=Query(...)):
+    # Check that the account exists
+    if validate_existance(mail, type)==True:
+        raise HTTPException(status_code=409, detail="An account is already registered with that email")
+    
     # Save the profile information to a dictionary
     user = {
         "id": id_counter+1,
