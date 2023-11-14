@@ -1,1 +1,11 @@
 # This file contains main commands for accesing the urls of the RestAPI and accesing information
+
+For the following commands use the URLs in each case: if testing on LAN "http://<device_ip>:<device_port>" or if hosted on a webpage "https://carpooling-rest.azurewebsites.net"
+    NOTES:  1. the square braces([]) represent spaces where information should be added
+            2. the "< >" are variables since they could change overtime or depending of the host such as IP or PORT
+            3. the symbol "{URL}" represent the respective url mentioned previously
+            4. the value "type" indicates whether the connecting user is an employee or a driver
+
+
+-> Create accounts: {URL}/accounts/new/?name=[]&type=[]&mail=[]&password=[]
+-> Login to an account: {URL}/accounts/login/?name_or_mail=[]&password=[]&type=[]
