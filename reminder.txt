@@ -6,3 +6,4 @@
 
 -> uvicorn src.main:http_app
 -> uvicorn src.main:http_app --reload
+-> uvicorn src.main:http_app --host=0.0.0.0 --reload

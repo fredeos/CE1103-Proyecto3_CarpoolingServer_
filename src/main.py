@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi import Query
 
 import json
+from src.lib.Graph import Graph
 
 http_app = FastAPI()
 
@@ -11,13 +12,17 @@ drivers = [] # This list saves dictionaries(jsons) of the drivers of the app
 
 id_counter = 0 # Variable for counting id
 
+# Grafo con los puntos del mapa
+marks = Graph()
+    #TODO: Cargar el grafo con una estructura definida
+
 #-----------------[Reads from the saved files and adds them to the previous lists]-----------------#
 with open("src/database/bootup.txt", "r") as file: #Read from the bootup file
     for line in file:
         line = line.strip() # This only removes whitespaces
         strings = line.split(":")
 
-        path = f"src/database/{strings[0]}.json"
+        path = f"src/database/{strings[1][0].upper()}-{strings[0]}.json"
         with open(path, "r") as metadata: # Reads the respective json of the user
             json_file = json.load(metadata)
         
@@ -28,7 +33,7 @@ with open("src/database/bootup.txt", "r") as file: #Read from the bootup file
             employees.append(json_file)
         
         id_counter += 1
-        
+
 #-----------------[Reads from the saved files and adds them to the previous lists]-----------------#
 
 # >>> Welcome method
@@ -39,33 +44,63 @@ def welcome():
 # >>> GET a driver by id
 @http_app.get("/drivers/")
 def get_driver_by_id(id:int=Query()):
-    user = {}
     for driver in drivers:
         if driver["id"]==id:
-            user = driver
-    return user
+            return driver
+    
+    raise HTTPException(status_code=404, detail="User account not found")
 
 # >>> GET a employee by id
 @http_app.get("/employees/")
 def get_employee_by_id(id:int=Query()):
-    user = {}
     for employee in employees:
         if employee["id"]==id:
-            user = employee
-    return user
+            return employee
+    
+    raise HTTPException(status_code=404, detail="User account not found")
 
 # >>> Create new user account
+# Helper method
+def validate_existance(email:str, type:str):
+    """
+    Verifies if the given user already exists in the system
+
+    Parameters:
+        - email(str): emiail of the user
+        - type(str): either 'driver' or 'employee' account
+
+    Returns:
+        - False if the user hasnt been registered yet or True if the user has already been registered
+    """
+    if type=="driver":
+        for driver in drivers:
+            if driver["mail"]==email:
+                return True
+    if type=="employee":
+        for employee in employees:
+            if employee["mail"]==email:
+                return True
+    return False
+
+# Main method
 @http_app.post("/accounts/new/")
 def create_new_user(name:str=Query(...) , type: str=Query(...) , mail:str=Query(...), password:str=Query(...)):
+    # Check that the account exists
+    if validate_existance(mail, type)==True:
+        raise HTTPException(status_code=409, detail="An account is already registered with that email")
+    
     # Save the profile information to a dictionary
     user = {
         "id": id_counter+1,
         "name": name,
         "mail": mail,
-        "pass": password
+        "pass": password,
+        "transport?": [False, "None", "None"], # For employees ONLY; is used to know if there is a transport request and from which point to which point
+        "availabe?": [False, "None", "None"], # For drivers ONLY; to save whether the driver is available to transport people or not, and current position and destination
     }
+
     # Output folder for saving the user json file
-    output_path = f"src/database/{mail}.json"
+    output_path = f"src/database/{type[0].upper()}-{mail}.json"
     # Convert the dict to a jsonstring
     user_string = json.dumps(user)
 
@@ -103,3 +138,7 @@ def login_user(name_or_mail:str=Query(...), password:str=Query(...), type:str=Qu
                 return employee
             
     raise HTTPException(status_code=404, detail="User account not found")
+
+# >>> TODO: Agregar y remover puntos al grafo
+# >>> TODO: Asignar y remover empleados a puntos del grafo
+# >>> TODO: Elegir personas a llevar(solo el conductor) y usar algoritmo de djistra para optimizar la ruta
