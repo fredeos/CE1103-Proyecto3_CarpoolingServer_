@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi import Query
 
 import json
-from src.lib.Graph import Graph
+from src.dta.Graph import Graph
 
 http_app = FastAPI()
 
