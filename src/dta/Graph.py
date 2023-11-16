@@ -127,12 +127,88 @@ class Graph:
                 return True
             
         return False
+    
+    def get_connections_of_node(self, node_id:str):
+        """
+        Gets the related connections of a specific node in the graph
+        """
+        node_id = node_id.upper()
+        node_connections = []
+        if self.verify_if_node_in_list(node_id):
+            for edge in self.connections:
+                if edge[0]==node_id:
+                    node_connections.append((edge[1], edge[2]))
+                elif edge[1]==node_id:
+                    node_connections.append((edge[0], edge[2]))
+            return node_connections
+        else:
+            raise Exception(f"Node {node_id} doesnt exist in the graph")
+        
 
-    def find_route(self, pointA_id, pointB_id): # Implentation of djistra
+    def find_route(self, pointA_id:str, pointB_id:str): # Implentation of dijkstra's algorithm
         """
         Finds the fastest route from point A to point B within the current graph
         """
-        pass
+        pointA_id = pointA_id.upper() # Change the id to a readable format
+        pointB_id = pointB_id.upper() # Change the id to a readable format
+        # Verifications
+        if not self.verify_if_node_in_list(pointA_id):
+            raise Exception(f"Node {pointA_id} doesnt exist in the graph")
+        if not self.verify_if_node_in_list(pointB_id):
+            raise Exception(f"Node {pointB_id} doesnt exist in the graph")
+        if pointA_id==pointB_id:
+            raise Exception(f"Node {pointA_id} is identical to {pointB_id}")
+        # Create a list with total amount of nodes in the graph
+        node_ids = []
+        node_ids.append(pointA_id)
+        for node in self.nodes:
+            if node[0]!=pointA_id and node[0]!=pointB_id:
+                node_ids.append(node[0])
+        node_ids.append(pointB_id)
+        print(node_ids)
+
+        visited_nodes = [] #List of visited nodes
+        route = [] # The route the algorithm finds the shortest from point A to point B
+        route_size = 0
+        counter = 0 # Counts the iterations that the algorithm must do
+        node = node_ids[0]
+        restart_flag = False
+        while counter < len(node_ids):
+            visited_nodes.append(node)
+            node_connections = self.get_connections_of_node(node)
+            print(f"Connections of node {node}: {node_connections}")
+
+            smallest = (pointA_id, 0) #Default value
+            # Get the smallest connection from the list
+            for connection in node_connections:
+                if connection[0] not in visited_nodes:
+                    if smallest[1] == 0:
+                        smallest = connection
+                    elif smallest[1]>connection[1]:
+                        smallest = connection
+            
+            if smallest[0] == pointA_id and smallest[1]==0:
+                for connection in node_connections:
+                    if connection[0] == pointA_id:
+                        smallest = connection
+                restart_flag = True
+            
+            # Save the current node to the route
+            print(smallest)
+            route_size+= smallest[1]
+            route.append(node)
+            if restart_flag == True:
+                route = []
+                route_size = 0
+                restart_flag = False
+            if smallest[0] == pointB_id:
+                route.append(smallest[0])
+                break
+            node = smallest[0] # Update the next node to analyze
+            counter += 1
+
+        print(route, ':', route_size)
+        #return route
 
     # >>> Auxiliary methods <<<
 
