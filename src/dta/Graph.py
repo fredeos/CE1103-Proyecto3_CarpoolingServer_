@@ -148,6 +148,13 @@ class Graph:
     def find_route(self, pointA_id:str, pointB_id:str): # Implentation of dijkstra's algorithm
         """
         Finds the fastest route from point A to point B within the current graph
+
+        Parameters:
+            - pointA_id(str): name of the node A from the graph
+            - pointB_id(str): name of the node B from the graph
+
+        Returns:
+            - A list with the: the list of nodes in order of the route and the total weight
         """
         pointA_id = pointA_id.upper() # Change the id to a readable format
         pointB_id = pointB_id.upper() # Change the id to a readable format

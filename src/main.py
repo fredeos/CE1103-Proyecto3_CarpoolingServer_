@@ -61,11 +61,22 @@ with open("src/database/bootup.txt", "r") as file: #Read from the bootup file
 # >>> Welcome method
 @http_app.get("/")
 def welcome():
+    """
+    Welcome message
+    """
     return {"message": "Hello World"}
 
 # >>> GET a driver by id
 @http_app.get("/drivers/")
 def get_driver_by_id(id:int=Query()):
+    """
+    Looks for a driver based on its id
+
+    Paramters:
+        - id(int): id number of the user
+
+    Returns: json object of the user
+    """
     for driver in drivers:
         if driver["id"]==id:
             return driver
@@ -75,6 +86,14 @@ def get_driver_by_id(id:int=Query()):
 # >>> GET a employee by id
 @http_app.get("/employees/")
 def get_employee_by_id(id:int=Query()):
+    """
+    Looks for an employee based on its id
+
+    Paramters:
+        - id(int): id number of the user
+
+    Returns: json object of the user
+    """
     for employee in employees:
         if employee["id"]==id:
             return employee
@@ -107,6 +126,21 @@ def validate_existance(email:str, type:str):
 # Main method
 @http_app.post("/accounts/new/")
 def create_new_user(name:str=Query(...) , type: str=Query(...) , mail:str=Query(...), password:str=Query(...)):
+    """
+    Registers an new user in the system as either an employee or a driver. Allows duplication of emails only if
+    there is an user with same email as an employee and as a drver.
+
+    Parameters:
+        - name(str): username of the user
+        - type(str): either a driver or employee classification
+        - mail(str): email of the user
+        - password(str): security password of the user used upon register
+
+    Returns: 
+        - Newly created json object of the user, contains: automatiaclly assigned id, name, email, password, and transportation features
+    Exceptions:
+        - ERROR 409: Account already exists
+    """
     global id_counter
     # Check that the account exists
     if validate_existance(mail, type)==True:
@@ -150,6 +184,20 @@ def create_new_user(name:str=Query(...) , type: str=Query(...) , mail:str=Query(
 # >>> Login to an account(either a Driver or Employee)
 @http_app.get("/accounts/login/")
 def login_user(name_or_mail:str=Query(...), password:str=Query(...), type:str=Query(...)):
+    """
+    Retrieves an specified user from the classification based on name or email, and password. Users can either login with their email
+    or their name. Depending on which app requests the server, they must use the driver or employee classificatiom.
+
+    Paramters:
+        - name_or_mail(str): name or email of the user
+        - password(str): password 
+
+    Returns:
+        - Json object with the requested credentials
+    
+    Exceptions:
+        - ERROR 404: User was not found or incorrect credentils.
+    """
     if type=="driver":
         for driver in drivers:
             if driver["name"]==name_or_mail and driver["pass"]==password:
@@ -168,6 +216,12 @@ def login_user(name_or_mail:str=Query(...), password:str=Query(...), type:str=Qu
 # >>> Get graph information
 @http_app.get("/graph")
 def retrieve_graph():
+    """
+    Retrieves the structure of the graph as json object to share with the client requesting it.
+
+    Returns:
+        - Json object of the graph containing the list of nodes with their id, list of people on spot, and list of connections with nodes and weights
+    """
     nodes = marks.nodes
     graph_list = []
     json_object = {
@@ -181,6 +235,20 @@ def retrieve_graph():
 # >>> Set the startpoint for a user
 @http_app.put("/graph/add:start/user/")
 def add_user_startpoint(user_id: int=Query(...), type:str=Query(...), startpoint:str=Query(...)):
+    """
+    Adds a user to node on the graph as ther startpoint for their travel.
+
+    Parameters:
+        - user_id(int): number value of the id
+        - type(str): classification of the user as driver or employee
+        - startpoint(str): id name of the node of the graph
+
+    Returns:
+        - Modified json object of the user witb their transport or availability properties updated for starting a travel
+
+    Exceptions:
+        - ERROR 404: User was noyt found
+    """
     global marks
     if type.lower()=="driver":
         for driver in drivers:
@@ -200,6 +268,20 @@ def add_user_startpoint(user_id: int=Query(...), type:str=Query(...), startpoint
 # >>> Set the endpoint for a user
 @http_app.put("/graph/add:end/user/")
 def add_user_endpoint(user_id: int=Query(...), type:str=Query(...), endpoint:str=Query(...)):
+    """
+    Adds a user to node on the graph as ther endpoint for their travel.
+
+    Parameters:
+        - user_id(int): number value of the id
+        - type(str): classification of the user as driver or employee
+        - endpoint(str): id name of the node of the graph
+
+    Returns:
+        - Modified json object of the user witb their transport or availability properties updated for setting the end of the travel
+
+    Exceptions:
+        - ERROR 404: User was noyt found
+    """
     global marks
     if type.lower()=="driver":
         for driver in drivers:
@@ -219,6 +301,20 @@ def add_user_endpoint(user_id: int=Query(...), type:str=Query(...), endpoint:str
 # >>> Reset the travel parameters of the user and remove from node
 @http_app.delete("/graph/rm:endtravel/user/")
 def finish_travel(user_id: int=Query(...), type:str=Query(...)):
+    """
+    On requested from client resets the speciefied user's availability or transport properties back to normal, as
+    their travel was either canceled or was finished correctly.
+
+    Parameters;:
+        - user_id(int): number value of the id
+        - type(str): classification of the user as either driver or employee
+
+    Returns:
+        - Modified user json object with its travel properties reset back ti normal
+
+    Exceptions:
+        - ERRO 404: User with given id was not found
+    """
     global marks
     if type.lower()=="driver":
         for driver in drivers:
@@ -250,6 +346,17 @@ def finish_travel(user_id: int=Query(...), type:str=Query(...)):
 # >>> TODO: Elegir personas a llevar(solo el conductor) y usar algoritmo de djistra para optimizar la ruta
 @http_app.get("/graph/calculate/")
 def get_pickup_route(users_to_pickup: list[int]=Query(...), driver_id: int=Query(...)):
+    """
+    Calculates the appropiate path for the picking up the users selected by the driver and gets the complete route
+    to set on the map and the aproximate time to complete the travel.
+
+    Parameters:
+        - users_to_pickup(list): contains the ids of the users the driver decided to pickup
+        - driver_id(int): id of the driver deciding to start the travel
+
+    Returns:
+        - Json object with a list of the complete route of nodes that must be visited and an integer value of the total time.
+    """
     # Retrieve the driver doing the pickup
     driver_file = {}
     for driver in drivers:
