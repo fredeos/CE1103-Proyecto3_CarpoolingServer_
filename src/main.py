@@ -15,6 +15,28 @@ id_counter = 0 # Variable for counting id
 # Grafo con los puntos del mapa
 marks = Graph()
     #TODO: Cargar el grafo con una estructura definida
+#-------------------------[Generate a default structure for the graph]-------------------------#
+with open("src/geodata.txt", "r") as file:
+    for line in file:
+        line = line.strip()
+        is_tuple = False
+        for char in line:
+            if char=='-':
+                is_tuple = True
+        data_list = line.split(":")
+        counter = 0
+        if is_tuple:
+            for tuple in data_list:
+                tuple = tuple.split('-')
+                data_list[counter] = (tuple[0], tuple[1], int(tuple[2]))
+                counter += 1
+            marks.add_connections(data_list)
+        else:
+            for node in data_list:
+                marks.add_new_node(node, None)
+        marks.show_nodes()
+        marks.show_connections()
+#-------------------------[Generate a default structure for the graph]-------------------------#
 
 #-----------------[Reads from the saved files and adds them to the previous lists]-----------------#
 with open("src/database/bootup.txt", "r") as file: #Read from the bootup file
@@ -85,18 +107,22 @@ def validate_existance(email:str, type:str):
 # Main method
 @http_app.post("/accounts/new/")
 def create_new_user(name:str=Query(...) , type: str=Query(...) , mail:str=Query(...), password:str=Query(...)):
+    global id_counter
     # Check that the account exists
     if validate_existance(mail, type)==True:
         raise HTTPException(status_code=409, detail="An account is already registered with that email")
     
     # Save the profile information to a dictionary
+    id_counter +=1
     user = {
-        "id": id_counter+1,
+        "id": id_counter,
         "name": name,
         "mail": mail,
         "pass": password,
         "transport?": [False, "None", "None"], # For employees ONLY; is used to know if there is a transport request and from which point to which point
-        "availabe?": [False, "None", "None"], # For drivers ONLY; to save whether the driver is available to transport people or not, and current position and destination
+        "available?": [False, "None", "None"], # For drivers ONLY; to save whether the driver is available to transport people or not, and current position and destination
+        "traveling": [False, "None"], # Boolean to configure if the travel has already started(for both) and which driver is the transporter(only for users)
+        "currentroute": [], # Route the curent user is on
     }
 
     # Output folder for saving the user json file
@@ -138,7 +164,129 @@ def login_user(name_or_mail:str=Query(...), password:str=Query(...), type:str=Qu
                 return employee
             
     raise HTTPException(status_code=404, detail="User account not found")
+# -----------------------[Graph manipulation]-----------------------#
+# >>> Get graph information
+@http_app.get("/graph")
+def retrieve_graph():
+    nodes = marks.nodes
+    graph_list = []
+    json_object = {
+        "nodes": []
+    }
+    for node in nodes:
+        graph_list.append({"id": node[0], "connections": marks.get_connections_of_node(node[0]), "users": node[1]})
+    json_object["nodes"] = graph_list
+    return json_object
 
-# >>> TODO: Agregar y remover puntos al grafo
-# >>> TODO: Asignar y remover empleados a puntos del grafo
+# >>> Set the startpoint for a user
+@http_app.put("/graph/add:start/user/")
+def add_user_startpoint(user_id: int=Query(...), type:str=Query(...), startpoint:str=Query(...)):
+    global marks
+    if type.lower()=="driver":
+        for driver in drivers:
+            if driver["id"]==user_id: # If the user is found then
+                driver["available?"][0] = True
+                driver["available?"][1] = startpoint.upper()
+                marks.add_people_to_node(startpoint, [driver["id"]])
+                return driver
+    elif type.lower()=="employee":
+        for employee in employees:
+            if employee["id"]==user_id:
+                employee["transport?"][0] = True
+                employee["transport?"][1] = startpoint.upper()
+                marks.add_people_to_node(startpoint, [employee["id"]])
+                return employee
+    raise HTTPException(status_code=404, detail=f"User with id({user_id}) was not found in the corresponding user list")
+# >>> Set the endpoint for a user
+@http_app.put("/graph/add:end/user/")
+def add_user_endpoint(user_id: int=Query(...), type:str=Query(...), endpoint:str=Query(...)):
+    global marks
+    if type.lower()=="driver":
+        for driver in drivers:
+            if driver["id"]==user_id: # If the user is found then
+                driver["available?"][0] = True
+                driver["available?"][2] = endpoint.upper()
+                marks.add_people_to_node(endpoint, [driver["id"]])
+                return driver
+    elif type.lower()=="employee":
+        for employee in employees:
+            if employee["id"]==user_id:
+                employee["transport?"][0] = True
+                employee["transport?"][2] = endpoint.upper()
+                marks.add_people_to_node(endpoint, [employee["id"]])
+                return employee
+    raise HTTPException(status_code=404, detail=f"User with id({user_id}) was not found in the corresponding user list")
+# >>> Reset the travel parameters of the user and remove from node
+@http_app.delete("/graph/rm:endtravel/user/")
+def finish_travel(user_id: int=Query(...), type:str=Query(...)):
+    global marks
+    if type.lower()=="driver":
+        for driver in drivers:
+            if driver["id"]==user_id:
+                driver["available?"][0] = False
+
+                if driver["available?"][1] != "None":
+                    marks.remove_people_from_node(driver["available?"][1], [driver["id"]])
+                    driver["available?"][1] = "None"
+
+                if driver["available?"][2] != "None":
+                    marks.remove_people_from_node(driver["available?"][2], [driver["id"]])
+                    driver["available?"][2] = "None"
+                return driver
+    elif type.lower()=="employee":
+        for employee in employees:
+            if employee["id"] == user_id:
+                employee["transport?"][0] = False
+
+                if employee["transport?"][1] != "None":
+                    marks.remove_people_from_node(employee["transport?"][1], [employee["id"]])
+                    employee["transport?"][1] = "None"
+
+                if employee["transport?"][2] != "None":
+                    marks.remove_people_from_node(employee["transport?"][2], [employee["id"]])
+                    employee["transport?"][2] = "None"
+                return employee
+    raise HTTPException(status_code=404, detail=f"User with id({user_id}) was not found in the corresponding user list")
 # >>> TODO: Elegir personas a llevar(solo el conductor) y usar algoritmo de djistra para optimizar la ruta
+@http_app.get("/graph/calculate/")
+def get_pickup_route(users_to_pickup: list[int]=Query(...), driver_id: int=Query(...)):
+    # Retrieve the driver doing the pickup
+    driver_file = {}
+    for driver in drivers:
+        if driver["id"]==driver_id:
+            driver_file = driver
+            break
+    # Get starting points of each user in the pickup list
+    nodes_to_visit = []
+    nodes_to_visit.append(driver_file["available?"][1]) # Add the startpoint of the driver
+    for user_id in users_to_pickup:
+        for employee in employees:
+            if employee["id"] == user_id:
+                nodes_to_visit.append(employee["transport?"][1])
+    nodes_to_visit.append(driver_file["available?"][2]) # Add the endpoint of the driver
+    # Find the route for pair of values in the nodes to visit list
+    counter = 0
+    all_routes = []
+    while counter < len(nodes_to_visit)-1:
+        if nodes_to_visit[counter] == nodes_to_visit[counter+1]:
+            route = [[nodes_to_visit[counter]], 0]
+            all_routes.append(route)
+        else:
+            route = marks.find_route(nodes_to_visit[counter], nodes_to_visit[counter+1])
+            all_routes.append(route)
+        counter +=1
+    # Once the total path is found: join the routes as one and calculate the total expected time
+    final_time = 0
+    final_route = []
+    for route in all_routes:
+        final_time+=route[1]
+        for node in route[0]:
+            if len(final_route)>0:
+                if node != final_route[len(final_route)-1]:
+                    final_route.append(node)
+            else:
+                final_route.append(node)
+
+    return { "route": final_route, "time": final_time}
+# -----------------------[Graph manipulation]-----------------------#
+# >>> TODO: Agregar y remover puntos al grafo

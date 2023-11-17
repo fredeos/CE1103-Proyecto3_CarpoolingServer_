@@ -19,4 +19,4 @@ graph.add_connections([
 graph.show_nodes()
 graph.show_connections()
 
-graph.find_route("C", "T")
+graph.find_route("C", "C")

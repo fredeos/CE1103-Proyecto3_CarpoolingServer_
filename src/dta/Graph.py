@@ -208,7 +208,7 @@ class Graph:
             counter += 1
 
         print(route, ':', route_size)
-        #return route
+        return [route, route_size]
 
     # >>> Auxiliary methods <<<
 
